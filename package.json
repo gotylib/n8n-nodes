@@ -39,7 +39,8 @@
 			"dist/nodes/GithubIssues/GithubIssues.node.js",
 			"dist/nodes/Example/Example.node.js",
 			"dist/nodes/ArrayCondition/ArrayCondition.node.js",
-			"dist/nodes/ArrayIfThen/ArrayIfThen.node.js"
+			"dist/nodes/ArrayIfThen/ArrayIfThen.node.js",
+			"dist/nodes/HeaderCondition/HeaderCondition.node.js"
 		]
 	},
 	"devDependencies": {

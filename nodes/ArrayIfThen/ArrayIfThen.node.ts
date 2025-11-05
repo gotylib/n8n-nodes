@@ -18,7 +18,8 @@ export class ArrayIfThen implements INodeType {
 			name: 'Array If-Then',
 		},
 		inputs: [NodeConnectionTypes.Main],
-		outputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main, NodeConnectionTypes.Main],
+		outputNames: ['True', 'False'],
 		properties: [
 			{
 				displayName: 'Array Path',
@@ -29,6 +30,25 @@ export class ArrayIfThen implements INodeType {
 				placeholder: 'e.g., body.RegisterRecord or {{$json.body.RegisterRecord}}',
 				description:
 					'Path to the array in the JSON data. Use dot notation (e.g., body.array) or expression (e.g., {{$json.body.array}})',
+			},
+			{
+				displayName: 'Check Mode',
+				name: 'checkMode',
+				type: 'options',
+				options: [
+					{
+						name: 'All Elements Must Match',
+						value: 'all',
+						description: 'All array elements must match at least one rule (AND)',
+					},
+					{
+						name: 'At Least One Element Must Match',
+						value: 'any',
+						description: 'At least one array element must match at least one rule (OR)',
+					},
+				],
+				default: 'all',
+				description: 'How to check across array elements',
 			},
 			{
 				displayName: 'If-Then Rules',
@@ -43,90 +63,150 @@ export class ArrayIfThen implements INodeType {
 				description: 'Rules to apply: if condition is met, then perform action',
 				options: [
 					{
-						displayName: 'If Condition',
-						name: 'ifCondition',
-						type: 'fixedCollection',
-						default: {},
+						displayName: 'Combine Conditions',
+						name: 'combineConditions',
+						type: 'options',
 						options: [
 							{
-								displayName: 'Condition',
-								name: 'condition',
-								values: [
-									{
-										displayName: 'Field Path',
-										name: 'fieldPath',
-										type: 'string',
-										default: '',
-										placeholder: 'e.g., recordId or CounterpartyInfo.CounterpartyType',
-										description:
-											'Path to the field to check in each array element. Use dot notation or direct field name',
-									},
-									{
-										displayName: 'Operation',
-										name: 'operation',
-										type: 'options',
-										options: [
-											{
-												name: 'Equal',
-												value: 'equal',
-											},
-											{
-												name: 'Not Equal',
-												value: 'notEqual',
-											},
-											{
-												name: 'Contains',
-												value: 'contains',
-											},
-											{
-												name: 'Not Contains',
-												value: 'notContains',
-											},
-											{
-												name: 'Greater Than',
-												value: 'greaterThan',
-											},
-											{
-												name: 'Less Than',
-												value: 'lessThan',
-											},
-											{
-												name: 'Greater Than or Equal',
-												value: 'greaterThanOrEqual',
-											},
-											{
-												name: 'Less Than or Equal',
-												value: 'lessThanOrEqual',
-											},
-											{
-												name: 'Exists',
-												value: 'exists',
-											},
-											{
-												name: 'Not Exists',
-												value: 'notExists',
-											},
-										],
-										default: 'equal',
-										description: 'The operation to perform',
-									},
-									{
-										displayName: 'Value',
-										name: 'value',
-										type: 'string',
-										default: '',
-										displayOptions: {
-											hide: {
-												operation: ['exists', 'notExists'],
-											},
-										},
-										placeholder: 'e.g., 1',
-										description: 'Value to compare against (supports expressions)',
-									},
-								],
+								name: 'All Conditions Must Match (AND)',
+								value: 'and',
+								description: 'All conditions must be true',
+							},
+							{
+								name: 'At Least One Condition Must Match (OR)',
+								value: 'or',
+								description: 'At least one condition must be true',
 							},
 						],
-						description: 'Condition to check for each array element',
+						default: 'and',
+						description: 'How to combine multiple conditions in this rule',
+					},
+					{
+						displayName: 'Conditions',
+						name: 'conditions',
+						type: 'collection',
+						typeOptions: {
+							multipleValues: true,
+							multipleValueButtonText: 'Add Condition',
+						},
+						default: {},
+						placeholder: 'Add Condition',
+						description: 'Conditions to check for each array element',
+						options: [
+							{
+								displayName: 'Field Path',
+								name: 'fieldPath',
+								type: 'string',
+								default: '',
+								placeholder: 'e.g., [0] or recordId or CounterpartyInfo.CounterpartyType',
+								description:
+									'Path to the field. For arrays use [0], [1], etc. Use dot notation for objects (e.g., field.subfield)',
+							},
+							{
+								displayName: 'Operation',
+								name: 'operation',
+								type: 'options',
+								options: [
+									{
+										name: 'Equal',
+										value: 'equal',
+									},
+									{
+										name: 'Not Equal',
+										value: 'notEqual',
+									},
+									{
+										name: 'Contains',
+										value: 'contains',
+									},
+									{
+										name: 'Not Contains',
+										value: 'notContains',
+									},
+									{
+										name: 'Greater Than',
+										value: 'greaterThan',
+									},
+									{
+										name: 'Less Than',
+										value: 'lessThan',
+									},
+									{
+										name: 'Greater Than or Equal',
+										value: 'greaterThanOrEqual',
+									},
+									{
+										name: 'Less Than or Equal',
+										value: 'lessThanOrEqual',
+									},
+									{
+										name: 'In',
+										value: 'in',
+										description: 'Check if field value is in a list of values (comma-separated or newline-separated)',
+									},
+									{
+										name: 'Not In',
+										value: 'notIn',
+										description: 'Check if field value is not in a list of values (comma-separated or newline-separated)',
+									},
+									{
+										name: 'Date Between',
+										value: 'dateBetween',
+										description: 'Check if date is between two dates (inclusive)',
+									},
+									{
+										name: 'Is Empty',
+										value: 'isEmpty',
+										description: 'Check if field is empty (null, undefined, empty string)',
+									},
+									{
+										name: 'Is Not Empty',
+										value: 'isNotEmpty',
+										description: 'Check if field is not empty',
+									},
+									{
+										name: 'Exists',
+										value: 'exists',
+									},
+									{
+										name: 'Not Exists',
+										value: 'notExists',
+									},
+								],
+								default: 'equal',
+								description: 'The operation to perform',
+							},
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								typeOptions: {
+									rows: 3,
+								},
+								default: '',
+								displayOptions: {
+									hide: {
+										operation: ['exists', 'notExists', 'isEmpty', 'isNotEmpty'],
+									},
+								},
+								placeholder: 'e.g., 1 or "value1, value2, value3" for In/Not In operations',
+								description:
+									'Value to compare against. For "In" and "Not In" operations, use comma-separated or newline-separated values (supports expressions)',
+							},
+							{
+								displayName: 'Value 2 (for Date Between)',
+								name: 'value2',
+								type: 'string',
+								default: '',
+								displayOptions: {
+									show: {
+										operation: ['dateBetween'],
+									},
+								},
+								placeholder: 'e.g., 2021-12-31',
+								description: 'End date for date range (inclusive)',
+							},
+						],
 					},
 					{
 						displayName: 'Then Action',
@@ -139,13 +219,86 @@ export class ArrayIfThen implements INodeType {
 								name: 'action',
 								values: [
 									{
+										displayName: 'Check Condition Before Action',
+										name: 'checkCondition',
+										type: 'boolean',
+										default: false,
+										description: 'Whether to check a condition before performing the action',
+									},
+									{
+										displayName: 'Condition Field Path',
+										name: 'conditionFieldPath',
+										type: 'string',
+										default: '',
+										displayOptions: {
+											show: {
+												checkCondition: [true],
+											},
+										},
+										placeholder: 'e.g., [7] or field.subfield',
+										description:
+											'Field path to check. For arrays use [0], [1], etc. Use dot notation for objects',
+									},
+									{
+										displayName: 'Condition Operation',
+										name: 'conditionOperation',
+										type: 'options',
+										displayOptions: {
+											show: {
+												checkCondition: [true],
+											},
+										},
+										options: [
+											{
+												name: 'Is Empty',
+												value: 'isEmpty',
+											},
+											{
+												name: 'Is Not Empty',
+												value: 'isNotEmpty',
+											},
+											{
+												name: 'Equal',
+												value: 'equal',
+											},
+											{
+												name: 'Not Equal',
+												value: 'notEqual',
+											},
+											{
+												name: 'Exists',
+												value: 'exists',
+											},
+											{
+												name: 'Not Exists',
+												value: 'notExists',
+											},
+										],
+										default: 'isNotEmpty',
+										description: 'The condition to check',
+									},
+									{
+										displayName: 'Condition Value',
+										name: 'conditionValue',
+										type: 'string',
+										default: '',
+										displayOptions: {
+											show: {
+												checkCondition: [true],
+												conditionOperation: ['equal', 'notEqual'],
+											},
+										},
+										placeholder: 'e.g., 1',
+										description: 'Value to compare against',
+									},
+									{
 										displayName: 'Target Field',
 										name: 'targetField',
 										type: 'string',
 										default: '',
-										placeholder: 'e.g., docid.id or result',
+										placeholder: 'e.g., [7] or docid.id or result',
 										description:
-											'Field path where to store the result. Use dot notation to create nested objects',
+											'Field path where to store the result. For arrays use [0], [1], etc. Use dot notation to create nested objects',
 									},
 									{
 										displayName: 'Expression',
@@ -209,13 +362,31 @@ export class ArrayIfThen implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const returnData: INodeExecutionData[] = [];
+		const returnDataTrue: INodeExecutionData[] = [];
+		const returnDataFalse: INodeExecutionData[] = [];
+
+		// Helper function to parse list of values for "in" and "notIn" operations
+		const parseValueList = (value: any): string[] => {
+			if (!value) {
+				return [];
+			}
+			if (Array.isArray(value)) {
+				return value.map((v) => String(v).trim()).filter((v) => v !== '');
+			}
+			const strValue = String(value);
+			// Split by comma or newline
+			return strValue
+				.split(/[,\n]/)
+				.map((v) => v.trim())
+				.filter((v) => v !== '');
+		};
 
 		// Helper function to perform a single comparison
 		const performComparison = (
 			fieldValue: any,
 			operation: string,
 			compareValue: any,
+			compareValue2?: any,
 		): boolean => {
 			switch (operation) {
 				case 'equal':
@@ -234,6 +405,44 @@ export class ArrayIfThen implements INodeType {
 					return Number(fieldValue) >= Number(compareValue);
 				case 'lessThanOrEqual':
 					return Number(fieldValue) <= Number(compareValue);
+				case 'in':
+					if (!compareValue) {
+						return false;
+					}
+					const valueList = parseValueList(compareValue);
+					const fieldValueStr = String(fieldValue);
+					return valueList.some((v) => v === fieldValueStr);
+				case 'notIn':
+					if (!compareValue) {
+						return true;
+					}
+					const valueListNotIn = parseValueList(compareValue);
+					const fieldValueStrNotIn = String(fieldValue);
+					return !valueListNotIn.some((v) => v === fieldValueStrNotIn);
+				case 'dateBetween':
+					if (!compareValue || !compareValue2) {
+						return false;
+					}
+					const fieldDate = new Date(fieldValue);
+					const date1 = new Date(compareValue);
+					const date2 = new Date(compareValue2);
+					return fieldDate >= date1 && fieldDate <= date2;
+				case 'isEmpty':
+					return (
+						fieldValue === undefined ||
+						fieldValue === null ||
+						fieldValue === '' ||
+						(Array.isArray(fieldValue) && fieldValue.length === 0) ||
+						(typeof fieldValue === 'object' && Object.keys(fieldValue).length === 0)
+					);
+				case 'isNotEmpty':
+					return !(
+						fieldValue === undefined ||
+						fieldValue === null ||
+						fieldValue === '' ||
+						(Array.isArray(fieldValue) && fieldValue.length === 0) ||
+						(typeof fieldValue === 'object' && Object.keys(fieldValue).length === 0)
+					);
 				case 'exists':
 					return fieldValue !== undefined && fieldValue !== null;
 				case 'notExists':
@@ -244,40 +453,105 @@ export class ArrayIfThen implements INodeType {
 		};
 
 		// Helper function to get field value from array item
+		// Supports both object paths (field.subfield) and array indices ([0], [1])
 		const getFieldValue = (arrayItem: any, fieldPath: string): any => {
 			if (!fieldPath) {
 				return arrayItem;
 			}
+
+			// Handle array indices like [0], [1], etc.
+			if (fieldPath.startsWith('[') && fieldPath.endsWith(']')) {
+				const index = parseInt(fieldPath.slice(1, -1), 10);
+				if (!isNaN(index) && Array.isArray(arrayItem)) {
+					return arrayItem[index];
+				}
+				return undefined;
+			}
+
+			// Handle dot notation for objects
 			const pathParts = fieldPath.split('.');
 			let value = arrayItem;
-			for (const part of pathParts) {
-				if (value && typeof value === 'object' && part in value) {
+
+			for (let i = 0; i < pathParts.length; i++) {
+				const part = pathParts[i];
+
+				// Check if part is an array index like [0]
+				if (part.startsWith('[') && part.endsWith(']')) {
+					const index = parseInt(part.slice(1, -1), 10);
+					if (!isNaN(index) && Array.isArray(value)) {
+						value = value[index];
+					} else {
+						return undefined;
+					}
+				} else if (value && typeof value === 'object' && part in value) {
 					value = value[part];
 				} else {
 					return undefined;
 				}
 			}
+
 			return value;
 		};
 
 		// Helper function to set field value in object using dot notation
+		// Supports both object paths and array indices
 		const setFieldValue = (obj: any, fieldPath: string, value: any): void => {
 			if (!fieldPath) {
 				return;
 			}
+
+			// Handle array indices like [0], [1], etc.
+			if (fieldPath.startsWith('[') && fieldPath.endsWith(']')) {
+				const index = parseInt(fieldPath.slice(1, -1), 10);
+				if (!isNaN(index) && Array.isArray(obj)) {
+					obj[index] = value;
+				}
+				return;
+			}
+
 			const pathParts = fieldPath.split('.');
 			let current = obj;
 			for (let i = 0; i < pathParts.length - 1; i++) {
 				const part = pathParts[i];
-				if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
-					current[part] = {};
+
+				// Check if part is an array index like [0]
+				if (part.startsWith('[') && part.endsWith(']')) {
+					const index = parseInt(part.slice(1, -1), 10);
+					if (!isNaN(index)) {
+						if (!Array.isArray(current)) {
+							current = [];
+						}
+						if (current[index] === undefined || current[index] === null) {
+							current[index] = {};
+						}
+						current = current[index];
+					} else {
+						return;
+					}
+				} else {
+					if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
+						current[part] = {};
+					}
+					current = current[part];
 				}
-				current = current[part];
 			}
-			current[pathParts[pathParts.length - 1]] = value;
+
+			const lastPart = pathParts[pathParts.length - 1];
+			if (lastPart.startsWith('[') && lastPart.endsWith(']')) {
+				const index = parseInt(lastPart.slice(1, -1), 10);
+				if (!isNaN(index)) {
+					if (!Array.isArray(current)) {
+						current = [];
+					}
+					current[index] = value;
+				}
+			} else {
+				current[lastPart] = value;
+			}
 		};
 
 		// Helper function to resolve field path from expression
+		// Supports array indices like [0], [1], etc.
 		const resolveFieldPath = (fieldPath: string): string => {
 			if (typeof fieldPath !== 'string') {
 				return '';
@@ -301,12 +575,14 @@ export class ArrayIfThen implements INodeType {
 					resolved = resolved.substring(6);
 				}
 			}
+			// Return as-is (supports both [0] format and object paths)
 			return resolved;
 		};
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const arrayPathParam = this.getNodeParameter('arrayPath', itemIndex, '') as any;
+				const checkMode = this.getNodeParameter('checkMode', itemIndex, 'all') as string;
 				const ifThenRulesCollection = this.getNodeParameter('ifThenRules', itemIndex, {}) as any;
 				const elseActionCollection = this.getNodeParameter('elseAction', itemIndex, {}) as any;
 				const item = items[itemIndex];
@@ -342,14 +618,20 @@ export class ArrayIfThen implements INodeType {
 					);
 				}
 
-				// Parse if-then rules
+				// Parse if-then rules with new structure
 				const rules: Array<{
-					ifCondition: {
+					conditions: Array<{
 						fieldPath: string;
 						operation: string;
 						value: any;
-					};
+						value2?: any;
+					}>;
+					combineConditions: string;
 					thenAction: {
+						checkCondition: boolean;
+						conditionFieldPath?: string;
+						conditionOperation?: string;
+						conditionValue?: any;
 						targetField: string;
 						expression: string;
 					};
@@ -359,34 +641,67 @@ export class ArrayIfThen implements INodeType {
 					if (Array.isArray(ifThenRulesCollection)) {
 						for (const rule of ifThenRulesCollection) {
 							if (rule && typeof rule === 'object') {
-								const ifCondition = rule.ifCondition;
+								const conditionsCollection = rule.conditions;
+								const combineConditions = rule.combineConditions || 'and';
 								const thenAction = rule.thenAction;
 
-								if (
-									ifCondition &&
-									typeof ifCondition === 'object' &&
-									ifCondition.condition &&
-									Array.isArray(ifCondition.condition) &&
-									ifCondition.condition.length > 0
-								) {
-									const condition = ifCondition.condition[0];
-									if (
-										thenAction &&
-										typeof thenAction === 'object' &&
-										thenAction.action &&
-										Array.isArray(thenAction.action) &&
-										thenAction.action.length > 0
-									) {
-										const action = thenAction.action[0];
-										const fieldPath = condition.fieldPath;
-										if (fieldPath !== undefined && fieldPath !== null && String(fieldPath).trim() !== '') {
+								// Parse conditions
+								const conditions: Array<{
+									fieldPath: string;
+									operation: string;
+									value: any;
+									value2?: any;
+								}> = [];
+
+								if (conditionsCollection && typeof conditionsCollection === 'object') {
+									if (Array.isArray(conditionsCollection)) {
+										for (const condition of conditionsCollection) {
+											if (condition && typeof condition === 'object') {
+												const fieldPath = condition.fieldPath;
+												if (fieldPath !== undefined && fieldPath !== null && String(fieldPath).trim() !== '') {
+													conditions.push({
+														fieldPath: String(fieldPath),
+														operation: (condition.operation as string) || 'equal',
+														value: condition.value,
+														value2: condition.value2,
+													});
+												}
+											}
+										}
+									} else {
+										// Fallback: convert object with numbered keys
+										const keys = Object.keys(conditionsCollection).sort();
+										for (const key of keys) {
+											const condition = conditionsCollection[key];
+											if (condition && typeof condition === 'object') {
+												const fieldPath = condition.fieldPath;
+												if (fieldPath !== undefined && fieldPath !== null && String(fieldPath).trim() !== '') {
+													conditions.push({
+														fieldPath: String(fieldPath),
+														operation: (condition.operation as string) || 'equal',
+														value: condition.value,
+														value2: condition.value2,
+													});
+												}
+											}
+										}
+									}
+								}
+
+								// Parse then action
+								if (thenAction && typeof thenAction === 'object' && thenAction.action) {
+									const actionArray = Array.isArray(thenAction.action) ? thenAction.action : [thenAction.action];
+									if (actionArray.length > 0) {
+										const action = actionArray[0];
+										if (conditions.length > 0) {
 											rules.push({
-												ifCondition: {
-													fieldPath: String(fieldPath),
-													operation: (condition.operation as string) || 'equal',
-													value: condition.value,
-												},
+												conditions,
+												combineConditions: String(combineConditions),
 												thenAction: {
+													checkCondition: Boolean(action.checkCondition),
+													conditionFieldPath: action.checkCondition ? String(action.conditionFieldPath || '') : undefined,
+													conditionOperation: action.checkCondition ? (String(action.conditionOperation || 'isNotEmpty')) : undefined,
+													conditionValue: action.checkCondition ? action.conditionValue : undefined,
 													targetField: String(action.targetField || ''),
 													expression: String(action.expression || ''),
 												},
@@ -402,34 +717,48 @@ export class ArrayIfThen implements INodeType {
 						for (const key of keys) {
 							const rule = ifThenRulesCollection[key];
 							if (rule && typeof rule === 'object') {
-								const ifCondition = rule.ifCondition;
+								const conditionsCollection = rule.conditions;
+								const combineConditions = rule.combineConditions || 'and';
 								const thenAction = rule.thenAction;
 
-								if (
-									ifCondition &&
-									typeof ifCondition === 'object' &&
-									ifCondition.condition &&
-									Array.isArray(ifCondition.condition) &&
-									ifCondition.condition.length > 0
-								) {
-									const condition = ifCondition.condition[0];
-									if (
-										thenAction &&
-										typeof thenAction === 'object' &&
-										thenAction.action &&
-										Array.isArray(thenAction.action) &&
-										thenAction.action.length > 0
-									) {
-										const action = thenAction.action[0];
-										const fieldPath = condition.fieldPath;
-										if (fieldPath !== undefined && fieldPath !== null && String(fieldPath).trim() !== '') {
+								const conditions: Array<{
+									fieldPath: string;
+									operation: string;
+									value: any;
+									value2?: any;
+								}> = [];
+
+								if (conditionsCollection && typeof conditionsCollection === 'object') {
+									if (Array.isArray(conditionsCollection)) {
+										for (const condition of conditionsCollection) {
+											if (condition && typeof condition === 'object') {
+												const fieldPath = condition.fieldPath;
+												if (fieldPath !== undefined && fieldPath !== null && String(fieldPath).trim() !== '') {
+													conditions.push({
+														fieldPath: String(fieldPath),
+														operation: (condition.operation as string) || 'equal',
+														value: condition.value,
+														value2: condition.value2,
+													});
+												}
+											}
+										}
+									}
+								}
+
+								if (thenAction && typeof thenAction === 'object' && thenAction.action) {
+									const actionArray = Array.isArray(thenAction.action) ? thenAction.action : [thenAction.action];
+									if (actionArray.length > 0) {
+										const action = actionArray[0];
+										if (conditions.length > 0) {
 											rules.push({
-												ifCondition: {
-													fieldPath: String(fieldPath),
-													operation: (condition.operation as string) || 'equal',
-													value: condition.value,
-												},
+												conditions,
+												combineConditions: String(combineConditions),
 												thenAction: {
+													checkCondition: Boolean(action.checkCondition),
+													conditionFieldPath: action.checkCondition ? String(action.conditionFieldPath || '') : undefined,
+													conditionOperation: action.checkCondition ? (String(action.conditionOperation || 'isNotEmpty')) : undefined,
+													conditionValue: action.checkCondition ? action.conditionValue : undefined,
 													targetField: String(action.targetField || ''),
 													expression: String(action.expression || ''),
 												},
@@ -458,6 +787,8 @@ export class ArrayIfThen implements INodeType {
 				}
 
 				// Process each array element
+				// Track which elements match the conditions
+				const elementMatches: boolean[] = [];
 				const processedArray = array.map((arrayItem, arrayIndex) => {
 					// Create a copy of the array item to avoid modifying original
 					const processedItem = JSON.parse(JSON.stringify(arrayItem));
@@ -465,116 +796,171 @@ export class ArrayIfThen implements INodeType {
 
 					// Check each rule
 					for (const rule of rules) {
-						const resolvedFieldPath = resolveFieldPath(rule.ifCondition.fieldPath);
-						const fieldValue = getFieldValue(arrayItem, resolvedFieldPath);
-						let compareValue: any = null;
+						// Check all conditions in this rule
+						const conditionResults: boolean[] = [];
 
-						if (
-							rule.ifCondition.operation !== 'exists' &&
-							rule.ifCondition.operation !== 'notExists'
-						) {
-							compareValue = rule.ifCondition.value;
-						}
+						for (const condition of rule.conditions) {
+							const resolvedFieldPath = resolveFieldPath(condition.fieldPath);
+							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath);
+							let compareValue: any = null;
+							let compareValue2: any = null;
 
-						const conditionResult = performComparison(
-							fieldValue,
-							rule.ifCondition.operation,
-							compareValue,
-						);
-
-						if (conditionResult) {
-							matched = true;
-							// Evaluate expression with $item context
-							let result: any = rule.thenAction.expression;
-
-							// If expression contains {{ }}, try to evaluate it
-							if (typeof result === 'string' && result.includes('{{')) {
-								try {
-									// Replace $item references with actual values
-									// Simple expression evaluation - replace $item.field with actual values
-									let expression = result;
-									// Replace $item.fieldName with actual values
-									const itemRegex = /\{\{\s*\$item\.([\w.]+)\s*\}\}/g;
-									expression = expression.replace(itemRegex, (match, path) => {
-										const value = getFieldValue(arrayItem, path);
-										return value !== undefined ? JSON.stringify(value) : 'undefined';
-									});
-
-									// Replace $item.fieldName in operations (without {{ }})
-									expression = expression.replace(/\$item\.([\w.]+)/g, (match, path) => {
-										const value = getFieldValue(arrayItem, path);
-										return value !== undefined ? JSON.stringify(value) : 'undefined';
-									});
-
-									// Try to evaluate the expression
-									// Extract the expression part (between {{ }})
-									const exprMatch = expression.match(/\{\{\s*(.+?)\s*\}\}/);
-									if (exprMatch) {
-										const expr = exprMatch[1].trim();
-										
-										// Replace $item.field with actual values from arrayItem
-										// This allows expressions like: $item.docid.id * $item.ContractNumber
-										let evalExpr = expr;
-										
-										// Replace all $item.fieldName references
-										const itemRefRegex = /\$item\.([\w.]+)/g;
-										evalExpr = evalExpr.replace(itemRefRegex, (match, path) => {
-											const value = getFieldValue(arrayItem, path);
-											if (value === undefined || value === null) {
-												return 'undefined';
-											}
-											// If it's a number, return as number
-											if (typeof value === 'number') {
-												return String(value);
-											}
-											// If it's a boolean, return as boolean
-											if (typeof value === 'boolean') {
-												return String(value);
-											}
-											// Otherwise, return as JSON string (will be parsed)
-											return JSON.stringify(value);
-										});
-
-										// Replace JSON stringified numbers and booleans back to actual values
-										evalExpr = evalExpr.replace(/"(-?\d+\.?\d*)"/g, (match, num) => {
-											return num; // Remove quotes from numbers
-										});
-										evalExpr = evalExpr.replace(/"true"/g, 'true');
-										evalExpr = evalExpr.replace(/"false"/g, 'false');
-										evalExpr = evalExpr.replace(/"null"/g, 'null');
-
-										try {
-											// Use Function constructor for safer evaluation
-											// This allows expressions like: docid.id * ContractNumber
-											const func = new Function(`return ${evalExpr}`);
-											result = func();
-										} catch (evalError) {
-											// If evaluation fails, keep the original expression
-											// It will be evaluated by n8n in subsequent nodes
-											result = rule.thenAction.expression;
-										}
-									} else {
-										// If no {{ }}, just use the expression as-is
-										result = expression;
-									}
-								} catch (error) {
-									// If evaluation fails, keep the expression as-is
-									result = rule.thenAction.expression;
+							if (
+								condition.operation !== 'exists' &&
+								condition.operation !== 'notExists' &&
+								condition.operation !== 'isEmpty' &&
+								condition.operation !== 'isNotEmpty'
+							) {
+								compareValue = condition.value;
+								if (condition.operation === 'dateBetween') {
+									compareValue2 = condition.value2;
 								}
 							}
 
-							// Set the result in the target field
-							if (rule.thenAction.targetField) {
-								setFieldValue(processedItem, rule.thenAction.targetField, result);
+							const conditionResult = performComparison(
+								fieldValue,
+								condition.operation,
+								compareValue,
+								compareValue2,
+							);
+
+							conditionResults.push(conditionResult);
+						}
+
+						// Combine condition results based on combineConditions
+						let ruleMatches: boolean;
+						if (rule.combineConditions === 'and') {
+							ruleMatches = conditionResults.every((r) => r === true);
+						} else {
+							ruleMatches = conditionResults.some((r) => r === true);
+						}
+
+						if (ruleMatches) {
+							// Check if there's a condition to check before performing the action
+							let shouldPerformAction = true;
+							
+							if (rule.thenAction.checkCondition) {
+								const conditionFieldPath = rule.thenAction.conditionFieldPath;
+								const conditionOperation = rule.thenAction.conditionOperation;
+								const conditionValue = rule.thenAction.conditionValue;
+
+								if (conditionFieldPath && conditionOperation) {
+									const resolvedConditionFieldPath = resolveFieldPath(conditionFieldPath);
+									const conditionFieldValue = getFieldValue(arrayItem, resolvedConditionFieldPath);
+									let conditionCompareValue: any = null;
+
+									if (
+										conditionOperation !== 'exists' &&
+										conditionOperation !== 'notExists' &&
+										conditionOperation !== 'isEmpty' &&
+										conditionOperation !== 'isNotEmpty'
+									) {
+										conditionCompareValue = conditionValue;
+									}
+
+									shouldPerformAction = performComparison(
+										conditionFieldValue,
+										conditionOperation,
+										conditionCompareValue,
+									);
+								}
 							}
 
-							// Only process first matching rule
-							break;
+							if (shouldPerformAction) {
+								matched = true;
+								// Evaluate expression with $item context
+								let result: any = rule.thenAction.expression;
+
+								// If expression contains {{ }}, try to evaluate it
+								if (typeof result === 'string' && result.includes('{{')) {
+									try {
+										// Replace $item references with actual values
+										// Simple expression evaluation - replace $item.field with actual values
+										let expression = result;
+										// Replace $item.fieldName with actual values
+										const itemRegex = /\{\{\s*\$item\.([\w.]+)\s*\}\}/g;
+										expression = expression.replace(itemRegex, (match, path) => {
+											const value = getFieldValue(arrayItem, path);
+											return value !== undefined ? JSON.stringify(value) : 'undefined';
+										});
+
+										// Replace $item.fieldName in operations (without {{ }})
+										expression = expression.replace(/\$item\.([\w.]+)/g, (match, path) => {
+											const value = getFieldValue(arrayItem, path);
+											return value !== undefined ? JSON.stringify(value) : 'undefined';
+										});
+
+										// Try to evaluate the expression
+										// Extract the expression part (between {{ }})
+										const exprMatch = expression.match(/\{\{\s*(.+?)\s*\}\}/);
+										if (exprMatch) {
+											const expr = exprMatch[1].trim();
+											
+											// Replace $item.field with actual values from arrayItem
+											// This allows expressions like: $item.docid.id * $item.ContractNumber
+											let evalExpr = expr;
+											
+											// Replace all $item.fieldName references
+											const itemRefRegex = /\$item\.([\w.]+)/g;
+											evalExpr = evalExpr.replace(itemRefRegex, (match, path) => {
+												const value = getFieldValue(arrayItem, path);
+												if (value === undefined || value === null) {
+													return 'undefined';
+												}
+												// If it's a number, return as number
+												if (typeof value === 'number') {
+													return String(value);
+												}
+												// If it's a boolean, return as boolean
+												if (typeof value === 'boolean') {
+													return String(value);
+												}
+												// Otherwise, return as JSON string (will be parsed)
+												return JSON.stringify(value);
+											});
+
+											// Replace JSON stringified numbers and booleans back to actual values
+											evalExpr = evalExpr.replace(/"(-?\d+\.?\d*)"/g, (match, num) => {
+												return num; // Remove quotes from numbers
+											});
+											evalExpr = evalExpr.replace(/"true"/g, 'true');
+											evalExpr = evalExpr.replace(/"false"/g, 'false');
+											evalExpr = evalExpr.replace(/"null"/g, 'null');
+
+											try {
+												// Use Function constructor for safer evaluation
+												// This allows expressions like: docid.id * ContractNumber
+												const func = new Function(`return ${evalExpr}`);
+												result = func();
+											} catch (evalError) {
+												// If evaluation fails, keep the original expression
+												// It will be evaluated by n8n in subsequent nodes
+												result = rule.thenAction.expression;
+											}
+										} else {
+											// If no {{ }}, just use the expression as-is
+											result = expression;
+										}
+									} catch (error) {
+										// If evaluation fails, keep the expression as-is
+										result = rule.thenAction.expression;
+									}
+								}
+
+								// Set the result in the target field
+								if (rule.thenAction.targetField) {
+									setFieldValue(processedItem, rule.thenAction.targetField, result);
+								}
+
+								// Only process first matching rule
+								break;
+							}
 						}
 					}
 
 					// If no rule matched and else action is defined
 					if (!matched && elseAction) {
+						matched = true; // Mark as matched even if no rule matched, but else action was applied
 						let result: any = elseAction.expression;
 
 						// If expression contains {{ }}, try to evaluate it
@@ -640,8 +1026,101 @@ export class ArrayIfThen implements INodeType {
 						}
 					}
 
-					return processedItem;
+					// Track if this element matched
+					elementMatches.push(matched);
+
+					return { processedItem, matched };
 				});
+
+				// Determine final result based on check mode
+				// First, identify which elements match IF conditions (regardless of THEN check)
+				const elementsMatchingIf: boolean[] = [];
+				for (let i = 0; i < array.length; i++) {
+					const arrayItem = array[i];
+					let matchesIf = false;
+					
+					for (const rule of rules) {
+						const conditionResults: boolean[] = [];
+						for (const condition of rule.conditions) {
+							const resolvedFieldPath = resolveFieldPath(condition.fieldPath);
+							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath);
+							let compareValue: any = null;
+							let compareValue2: any = null;
+							
+							if (
+								condition.operation !== 'exists' &&
+								condition.operation !== 'notExists' &&
+								condition.operation !== 'isEmpty' &&
+								condition.operation !== 'isNotEmpty'
+							) {
+								compareValue = condition.value;
+								if (condition.operation === 'dateBetween') {
+									compareValue2 = condition.value2;
+								}
+							}
+							
+							const conditionResult = performComparison(
+								fieldValue,
+								condition.operation,
+								compareValue,
+								compareValue2,
+							);
+							conditionResults.push(conditionResult);
+						}
+						
+						let ruleMatchesIf: boolean;
+						if (rule.combineConditions === 'and') {
+							ruleMatchesIf = conditionResults.every((r) => r === true);
+						} else {
+							ruleMatchesIf = conditionResults.some((r) => r === true);
+						}
+						
+						if (ruleMatchesIf) {
+							matchesIf = true;
+							break;
+						}
+					}
+					
+					elementsMatchingIf.push(matchesIf);
+				}
+				
+				// Check if there are any elements matching IF conditions
+				const hasElementsMatchingIf = elementsMatchingIf.some(m => m === true);
+				
+				let hasMatch: boolean;
+				if (checkMode === 'all') {
+					// All elements that match IF conditions must also pass THEN condition check
+					// If no elements match IF, result is false
+					if (!hasElementsMatchingIf) {
+						hasMatch = false;
+					} else {
+						// Check if all elements matching IF also match (pass THEN)
+						hasMatch = true;
+						for (let i = 0; i < elementsMatchingIf.length; i++) {
+							if (elementsMatchingIf[i] && !elementMatches[i]) {
+								// This element matches IF but doesn't match full rule (THEN failed)
+								hasMatch = false;
+								break;
+							}
+						}
+					}
+				} else {
+					// At least one element that matches IF conditions must also pass THEN condition check
+					// If no elements match IF, result is false
+					if (!hasElementsMatchingIf) {
+						hasMatch = false;
+					} else {
+						// Check if at least one element matching IF also matches (passes THEN)
+						hasMatch = false;
+						for (let i = 0; i < elementsMatchingIf.length; i++) {
+							if (elementsMatchingIf[i] && elementMatches[i]) {
+								// This element matches both IF and THEN
+								hasMatch = true;
+								break;
+							}
+						}
+					}
+				}
 
 				// Update the original array in the item
 				const pathToUse = String(arrayPathParam);
@@ -654,7 +1133,8 @@ export class ArrayIfThen implements INodeType {
 					}
 				}
 				if (target && typeof target === 'object') {
-					target[pathParts[pathParts.length - 1]] = processedArray;
+					// Update array with processed items
+					target[pathParts[pathParts.length - 1]] = processedArray.map((p: any) => p.processedItem);
 				}
 
 				// Add metadata
@@ -662,7 +1142,9 @@ export class ArrayIfThen implements INodeType {
 					json: {
 						...item.json,
 						_arrayIfThen: {
+							matched: hasMatch,
 							processedElements: processedArray.length,
+							matchedElements: processedArray.filter((p: any) => p.matched).length,
 							rulesApplied: rules.length,
 							hasElseAction: elseAction !== null,
 						},
@@ -670,10 +1152,15 @@ export class ArrayIfThen implements INodeType {
 					pairedItem: { item: itemIndex },
 				};
 
-				returnData.push(outputItem);
+				// Route to True or False output
+				if (hasMatch) {
+					returnDataTrue.push(outputItem);
+				} else {
+					returnDataFalse.push(outputItem);
+				}
 			} catch (error) {
 				if (this.continueOnFail()) {
-					returnData.push({
+					returnDataFalse.push({
 						json: { ...items[itemIndex].json, error: error.message },
 						pairedItem: { item: itemIndex },
 					});
@@ -689,7 +1176,7 @@ export class ArrayIfThen implements INodeType {
 			}
 		}
 
-		return [returnData];
+		return [returnDataTrue, returnDataFalse];
 	}
 }
 
