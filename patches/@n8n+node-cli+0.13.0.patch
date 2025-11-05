@@ -1,0 +1,16 @@
+diff --git a/node_modules/@n8n/node-cli/dist/commands/dev/index.js b/node_modules/@n8n/node-cli/dist/commands/dev/index.js
+index 5e2af21..46ea098 100644
+--- a/node_modules/@n8n/node-cli/dist/commands/dev/index.js
++++ b/node_modules/@n8n/node-cli/dist/commands/dev/index.js
+@@ -68,9 +68,9 @@ class Dev extends core_1.Command {
+                     }),
+                     new Promise((_, reject) => {
+                         setTimeout(() => {
+-                            const error = new Error('n8n startup timeout after 120 seconds');
++                            const error = new Error('n8n startup timeout after 600 seconds');
+                             reject(error);
+-                        }, 120_000);
++                        }, 600_000);
+                     }),
+                 ]);
+                 setupComplete = true;
