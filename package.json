@@ -18,12 +18,15 @@
 	"scripts": {
 		"build": "n8n-node build",
 		"build:watch": "tsc --watch",
-		"dev": "cross-env NPM_CONFIG_FETCH_TIMEOUT=300000 n8n-node dev",
+		"dev": "cross-env N8N_DEV_RELOAD=true n8n-node dev",
+		"dev:watch": "npm run build:watch",
+		"dev:manual": "npm run build && npx --yes n8n start",
+		"dev:debug": "cross-env N8N_DEV_RELOAD=true NODE_OPTIONS=\"--inspect=0.0.0.0:9229\" n8n-node dev",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",
 		"prepublishOnly": "n8n-node prerelease",
-		"postinstall": "patch-package"
+		"postinstall": "npx patch-package || exit 0"
 	},
 	"files": [
 		"dist"
@@ -45,8 +48,10 @@
 	},
 	"devDependencies": {
 		"@n8n/node-cli": "*",
+		"concurrently": "^9.2.1",
 		"cross-env": "^10.1.0",
 		"eslint": "9.32.0",
+		"patch-package": "^8.0.1",
 		"prettier": "3.6.2",
 		"release-it": "^19.0.4",
 		"typescript": "5.9.2"

@@ -1,7 +1,16 @@
 diff --git a/node_modules/@n8n/node-cli/dist/commands/dev/index.js b/node_modules/@n8n/node-cli/dist/commands/dev/index.js
-index 5e2af21..46ea098 100644
+index 5e2af21..e1925cb 100644
 --- a/node_modules/@n8n/node-cli/dist/commands/dev/index.js
 +++ b/node_modules/@n8n/node-cli/dist/commands/dev/index.js
+@@ -47,7 +47,7 @@ class Dev extends core_1.Command {
+             try {
+                 await Promise.race([
+                     new Promise((resolve) => {
+-                        runPersistentCommand('npx', ['-y', '--quiet', '--prefer-online', 'n8n@latest'], {
++                        runPersistentCommand('n8n', [], {
+                             cwd: n8nUserFolder,
+                             env: {
+                                 ...process.env,
 @@ -68,9 +68,9 @@ class Dev extends core_1.Command {
                      }),
                      new Promise((_, reject) => {
@@ -14,3 +23,54 @@ index 5e2af21..46ea098 100644
                      }),
                  ]);
                  setupComplete = true;
+diff --git a/node_modules/@n8n/node-cli/dist/commands/dev/utils.js b/node_modules/@n8n/node-cli/dist/commands/dev/utils.js
+index eb67d10..1c88516 100644
+--- a/node_modules/@n8n/node-cli/dist/commands/dev/utils.js
++++ b/node_modules/@n8n/node-cli/dist/commands/dev/utils.js
+@@ -15,6 +15,7 @@ function commands() {
+         childProcesses.push(child);
+     };
+     const killChild = (child, signal) => {
++        debugger;
+         if (!child.killed) {
+             child.kill(signal);
+         }
+@@ -24,10 +25,12 @@ function commands() {
+         process.exit(1);
+     };
+     const gracefulShutdown = (signal) => {
++        debugger;
+         if (childProcesses.length === 0) {
+             process.exit();
+             return;
+         }
++        debugger;
+         let exitedCount = 0;
+         const totalChildren = childProcesses.length;
+         const forceExitTimer = setTimeout(forceKillAllChildren, 5000);
+@@ -50,6 +53,7 @@ function commands() {
+         });
+     };
+     const handleSignal = (signal) => {
++        debugger;
+         if (isShuttingDown) {
+             console.log('\nForce killing processes...');
+             forceKillAllChildren();
+@@ -61,6 +65,7 @@ function commands() {
+         }
+         gracefulShutdown(signal);
+     };
++    debugger;
+     process.on('SIGINT', () => handleSignal('SIGINT'));
+     process.on('SIGTERM', () => handleSignal('SIGTERM'));
+     const stripAnsiCodes = (input) => input
+@@ -83,7 +88,9 @@ function commands() {
+             .filter(Boolean)
+             .forEach(logger);
+     };
++    debugger;
+     const runPersistentCommand = (cmd, args, opts = {}) => {
++        debugger;
+         const child = (0, node_child_process_1.spawn)(cmd, args, {
+             cwd: opts.cwd,
+             env: { ...process.env, ...opts.env },

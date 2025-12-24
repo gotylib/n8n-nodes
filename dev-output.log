@@ -1,0 +1,35 @@
+
+> n8n-nodes-starter@0.1.0 dev
+> cross-env N8N_DEV_RELOAD=true NPM_CONFIG_FETCH_TIMEOUT=300000 concurrently --kill-others "npx --yes n8n start" "npx n8n-node dev --external-n8n"
+
+[1] T   n8n-node dev 
+[1] [?25l|
+[1] тАв  Linking custom node to n8n[999D[Jo  Linking custom node to n8n[999D[JO  Linking custom node to n8n[999D[J0  Linking custom node to n8n[999D[JтАв  Linking custom node to n8n[999D[Jo  Linking custom node to n8n[999D[JO  Linking custom node to n8n[999D[J0  Linking custom node to n8n[999D[JтАв  Linking custom node to n8n.[999D[Jo  Linking custom node to n8n.[999D[JO  Linking custom node to n8n.[999D[J0  Linking custom node to n8n.[999D[JтАв  Linking custom node to n8n.[999D[Jo  Linking custom node to n8n.[999D[JO  Linking custom node to n8n.[999D[J0  Linking custom node to n8n.[999D[JтАв  Linking custom node to n8n..[999D[Jo  Linking custom node to n8n..[999D[JO  Linking custom node to n8n..[999D[J0  Linking custom node to n8n..[999D[JтАв  Linking custom node to n8n..
+[1] up to date, audited 3 packages in 2s
+[1] 
+[1] found 0 vulnerabilities
+[1] [999D[Jo  Linking custom node to n8n..[999D[JO  Linking custom node to n8n..[999D[J0  Linking custom node to n8n..[999D[JтАв  Linking custom node to n8n...[999D[Jo  Linking custom node to n8n...[999D[JO  Linking custom node to n8n...[999D[J0  Linking custom node to n8n...[999D[JтАв  Linking custom node to n8n...[999D[Jo  Linking custom node to n8n...[999D[JO  Linking custom node to n8n...[999D[J0  Linking custom node to n8n...[999D[JтАв  Linking custom node to n8n...[999D[Jo  Linking custom node to n8n[999D[JO  Linking custom node to n8n[999D[J0  Linking custom node to n8n[999D[JтАв  Linking custom node to n8n[999D[Jo  Linking custom node to n8n[999D[JO  Linking custom node to n8n[999D[J0  Linking custom node to n8n[999D[JтАв  Linking custom node to n8n[999D[Jo  Linking custom node to n8n.
+[0] Initializing n8n process
+[1] [999D[JO  Linking custom node to n8n.[999D[J0  Linking custom node to n8n.[999D[JтАв  Linking custom node to n8n.
+[0] n8n ready on ::, port 5678
+[1] [999D[Jo  Linking custom node to n8n.
+[0] 
+[0] There are deprecations related to your environment variables. Please take the recommended actions to update your configuration:
+[0]  - DB_SQLITE_POOL_SIZE -> Running SQLite without a pool of read connections is deprecated. Please set `DB_SQLITE_POOL_SIZE` to a value higher than zero. See: https://docs.n8n.io/hosting/configuration/environment-variables/database/#sqlite
+[0]  - N8N_RUNNERS_ENABLED -> Running n8n without task runners is deprecated. Task runners will be turned on by default in a future version. Please set `N8N_RUNNERS_ENABLED=true` to enable task runners now and avoid potential issues in the future. Learn more: https://docs.n8n.io/hosting/configuration/task-runners/
+[0]  - N8N_BLOCK_ENV_ACCESS_IN_NODE -> The default value of N8N_BLOCK_ENV_ACCESS_IN_NODE will be changed from false to true in a future version. If you need to access environment variables from the Code Node or from expressions, please set N8N_BLOCK_ENV_ACCESS_IN_NODE=false. Learn more: https://docs.n8n.io/hosting/configuration/environment-variables/security/
+[0]  - N8N_GIT_NODE_DISABLE_BARE_REPOS -> Support for bare repositories in the Git Node will be removed in a future version due to security concerns. If you are not using bare repositories in the Git Node, please set N8N_GIT_NODE_DISABLE_BARE_REPOS=true. Learn more: https://docs.n8n.io/hosting/configuration/environment-variables/security/
+[0] 
+[0] [license SDK] Skipping renewal on init: license cert is not initialized
+[1] 
+[1] added 1 package in 3s
+[1] [999D[Jo  Linked custom node to n8n
+[1] [?25h|
+[1] тАФ  тЬУ Setup complete
+[1] 
+[1] [build] 14:19:01 - Starting compilation in watch mode...
+[1] [build] 14:19:02 - Found 0 errors. Watching for file changes.
+[0] Version: 1.118.1
+[0] 
+[0] Editor is now accessible via:
+[0] http://localhost:5678

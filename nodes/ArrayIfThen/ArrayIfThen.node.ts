@@ -13,7 +13,8 @@ export class ArrayIfThen implements INodeType {
 		icon: { light: 'file:arrayIfThen.svg', dark: 'file:arrayIfThen.dark.svg' },
 		group: ['transform'],
 		version: 1,
-		description: 'Apply conditional transformations to array elements based on if-then rules',
+		description:
+			'Apply conditional transformations to array elements based on if-then rules. Supports referencing header data using $header.[0] syntax in conditions and expressions.',
 		defaults: {
 			name: 'Array If-Then',
 		},
@@ -30,6 +31,16 @@ export class ArrayIfThen implements INodeType {
 				placeholder: 'e.g., body.RegisterRecord or {{$json.body.RegisterRecord}}',
 				description:
 					'Path to the array in the JSON data. Use dot notation (e.g., body.array) or expression (e.g., {{$json.body.array}})',
+			},
+			{
+				displayName: 'Header Path (Optional)',
+				name: 'headerPath',
+				type: 'string',
+				default: '',
+				required: false,
+				placeholder: 'e.g., body.header or {{$json.body.header}}',
+				description:
+					'Optional path to header data. If provided, you can reference header fields in conditions using $header.[0] or $header.field syntax',
 			},
 			{
 				displayName: 'Check Mode',
@@ -98,9 +109,9 @@ export class ArrayIfThen implements INodeType {
 								name: 'fieldPath',
 								type: 'string',
 								default: '',
-								placeholder: 'e.g., [0] or recordId or CounterpartyInfo.CounterpartyType',
+								placeholder: 'e.g., [0] or $header.[12] or $header.12 or recordId or CounterpartyInfo.CounterpartyType',
 								description:
-									'Path to the field. For arrays use [0], [1], etc. Use dot notation for objects (e.g., field.subfield)',
+									'Path to the field. For arrays use [0], [1]. Use $header.[12] (array) or $header.12 (object key) to reference header data. Use dot notation for objects (e.g., field.subfield)',
 							},
 							{
 								displayName: 'Operation',
@@ -361,6 +372,7 @@ export class ArrayIfThen implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		debugger;
 		const items = this.getInputData();
 		const returnDataTrue: INodeExecutionData[] = [];
 		const returnDataFalse: INodeExecutionData[] = [];
@@ -452,18 +464,49 @@ export class ArrayIfThen implements INodeType {
 			}
 		};
 
-		// Helper function to get field value from array item
+		// Helper function to get field value from array item or header
 		// Supports both object paths (field.subfield) and array indices ([0], [1])
-		const getFieldValue = (arrayItem: any, fieldPath: string): any => {
+		// Supports $header.[0] syntax to reference header data
+		// Supports both $header.[12] (array) and $header.12 (object key) syntax
+		const getFieldValue = (arrayItem: any, fieldPath: string, headerData?: any): any => {
 			if (!fieldPath) {
 				return arrayItem;
+			}
+
+			// Check if this is a header reference
+			if (fieldPath.startsWith('$header.')) {
+				if (!headerData) {
+					return undefined;
+				}
+				const headerPath = fieldPath.substring(8); // Remove '$header.' prefix
+				
+				// Handle direct numeric key access like $header.2 or $header.[2]
+				if (headerPath === '' || headerPath.trim() === '') {
+					return headerData; // Return whole header if no path specified
+				}
+				
+				return getFieldValue(headerData, headerPath);
 			}
 
 			// Handle array indices like [0], [1], etc.
 			if (fieldPath.startsWith('[') && fieldPath.endsWith(']')) {
 				const index = parseInt(fieldPath.slice(1, -1), 10);
-				if (!isNaN(index) && Array.isArray(arrayItem)) {
-					return arrayItem[index];
+				if (!isNaN(index)) {
+					// Try as array first
+					if (Array.isArray(arrayItem)) {
+						return arrayItem[index];
+					}
+					// If not array, try as object key (string or number)
+					if (arrayItem && typeof arrayItem === 'object') {
+						// Try as string key
+						if (String(index) in arrayItem) {
+							return arrayItem[String(index)];
+						}
+						// Try as number key
+						if (index in arrayItem) {
+							return arrayItem[index];
+						}
+					}
 				}
 				return undefined;
 			}
@@ -478,13 +521,50 @@ export class ArrayIfThen implements INodeType {
 				// Check if part is an array index like [0]
 				if (part.startsWith('[') && part.endsWith(']')) {
 					const index = parseInt(part.slice(1, -1), 10);
-					if (!isNaN(index) && Array.isArray(value)) {
-						value = value[index];
+					if (!isNaN(index)) {
+						// Try as array first
+						if (Array.isArray(value)) {
+							value = value[index];
+						} 
+						// If not array, try as object key
+						else if (value && typeof value === 'object') {
+							// Try as string key first (e.g., "12")
+							if (String(index) in value) {
+								value = value[String(index)];
+							}
+							// Try as number key (e.g., 12)
+							else if (index in value) {
+								value = value[index];
+							} else {
+								return undefined;
+							}
+						} else {
+							return undefined;
+						}
 					} else {
 						return undefined;
 					}
-				} else if (value && typeof value === 'object' && part in value) {
-					value = value[part];
+				} else if (value && typeof value === 'object') {
+					// Try as regular property first
+					if (part in value) {
+						value = value[part];
+					}
+					// If not found and part is numeric, try as numeric key
+					else if (/^\d+$/.test(part)) {
+						const numKey = parseInt(part, 10);
+						// Try as string key (e.g., "12")
+						if (String(numKey) in value) {
+							value = value[String(numKey)];
+						}
+						// Try as number key (e.g., 12)
+						else if (numKey in value) {
+							value = value[numKey];
+						} else {
+							return undefined;
+						}
+					} else {
+						return undefined;
+					}
 				} else {
 					return undefined;
 				}
@@ -552,6 +632,7 @@ export class ArrayIfThen implements INodeType {
 
 		// Helper function to resolve field path from expression
 		// Supports array indices like [0], [1], etc.
+		// Supports $header.[0] syntax to reference header data
 		const resolveFieldPath = (fieldPath: string): string => {
 			if (typeof fieldPath !== 'string') {
 				return '';
@@ -564,18 +645,52 @@ export class ArrayIfThen implements INodeType {
 					resolved = resolved.substring(6);
 				} else if (resolved.startsWith('$json.')) {
 					resolved = resolved.substring(6);
+				} else if (resolved.startsWith('$header.')) {
+					// Keep $header. prefix for header references
+					// resolved stays as is
 				}
 			}
 			// Handle {{ }} expression syntax
 			if (resolved.startsWith('{{') && resolved.endsWith('}}')) {
 				resolved = resolved.slice(2, -2).trim();
-				if (resolved.startsWith('$json.')) {
-					resolved = resolved.substring(6);
-				} else if (resolved.startsWith('$item.')) {
-					resolved = resolved.substring(6);
+				// Check for header references BEFORE removing $json. prefix
+				if (resolved.includes('header[') || resolved.includes('header.[')) {
+					// Extract header index from pattern like $json.body.header[2] or header[2]
+					const headerMatch = resolved.match(/header\[(\d+)\]/);
+					if (headerMatch) {
+						resolved = `$header.[${headerMatch[1]}]`;
+					} else {
+						// Keep $header. prefix if already present
+						if (resolved.startsWith('$header.')) {
+							// resolved stays as is
+						} else if (resolved.startsWith('$json.')) {
+							resolved = resolved.substring(6);
+						} else if (resolved.startsWith('$item.')) {
+							resolved = resolved.substring(6);
+						}
+					}
+				} else {
+					if (resolved.startsWith('$json.')) {
+						resolved = resolved.substring(6);
+					} else if (resolved.startsWith('$item.')) {
+						resolved = resolved.substring(6);
+					} else if (resolved.startsWith('$header.')) {
+						// Keep $header. prefix for header references
+						// resolved stays as is
+					}
 				}
 			}
-			// Return as-is (supports both [0] format and object paths)
+			// Trim whitespace and normalize array indices (remove spaces inside brackets)
+			resolved = resolved.trim();
+			// Normalize [ 2 ] to [2] but preserve $header. prefix
+			if (resolved.startsWith('$header.')) {
+				const headerPrefix = '$header.';
+				const headerPath = resolved.substring(headerPrefix.length);
+				const normalizedPath = headerPath.replace(/\s*\[\s*(\d+)\s*\]\s*/g, '[$1]');
+				resolved = headerPrefix + normalizedPath;
+			} else {
+				resolved = resolved.replace(/\s*\[\s*(\d+)\s*\]\s*/g, '[$1]');
+			}
 			return resolved;
 		};
 
@@ -586,6 +701,44 @@ export class ArrayIfThen implements INodeType {
 				const ifThenRulesCollection = this.getNodeParameter('ifThenRules', itemIndex, {}) as any;
 				const elseActionCollection = this.getNodeParameter('elseAction', itemIndex, {}) as any;
 				const item = items[itemIndex];
+
+				// Resolve header path (optional)
+				let headerData: any = undefined;
+				const headerPathParam = this.getNodeParameter('headerPath', itemIndex, '') as any;
+				// eslint-disable-next-line no-console
+				console.log('[DEBUG ArrayIfThen] HeaderPathParam:', headerPathParam);
+				// eslint-disable-next-line no-console
+				console.log('[DEBUG ArrayIfThen] Item.json keys:', Object.keys(item.json));
+				
+				if (headerPathParam && String(headerPathParam).trim() !== '') {
+					if (Array.isArray(headerPathParam)) {
+						headerData = headerPathParam[0]; // Take first element if array
+					} else {
+						const pathToUse = String(headerPathParam);
+						// Handle both = prefix and full expressions
+						const cleanPath = pathToUse.replace(/^=/, '').replace(/^\$json\./, '');
+						// eslint-disable-next-line no-console
+						console.log('[DEBUG ArrayIfThen] Clean path:', cleanPath);
+						const pathParts = cleanPath.split('.');
+						let value: any = item.json;
+						for (const part of pathParts) {
+							// eslint-disable-next-line no-console
+							console.log('[DEBUG ArrayIfThen] Resolving path part:', part, 'from:', value);
+							if (value && typeof value === 'object' && part in value) {
+								value = value[part];
+							} else {
+								// Header path is optional, so don't throw error if not found
+								// eslint-disable-next-line no-console
+								console.log('[DEBUG ArrayIfThen] Path part not found:', part);
+								headerData = undefined;
+								break;
+							}
+						}
+						headerData = value;
+						// eslint-disable-next-line no-console
+						console.log('[DEBUG ArrayIfThen] Resolved headerData:', headerData);
+					}
+				}
 
 				// Resolve array path
 				let array: any[];
@@ -800,8 +953,34 @@ export class ArrayIfThen implements INodeType {
 						const conditionResults: boolean[] = [];
 
 						for (const condition of rule.conditions) {
-							const resolvedFieldPath = resolveFieldPath(condition.fieldPath);
-							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath);
+							let fieldPathToResolve = condition.fieldPath;
+							
+							// Check if expression contains header reference like {{ $json.body.header[2] }}
+							// Convert it to $header.[2] syntax
+							if (typeof fieldPathToResolve === 'string') {
+								// Check for patterns that indicate header reference
+								// Pattern: header[2] or body.header[2] or $json.body.header[2]
+								const headerPatterns = [
+									/\{\{\s*\$json\.body\.header\[(\d+)\]\s*\}\}/, // {{ $json.body.header[2] }}
+									/\{\{\s*\$json\.header\[(\d+)\]\s*\}\}/,      // {{ $json.header[2] }}
+									/\$json\.body\.header\[(\d+)\]/,              // $json.body.header[2]
+									/\$json\.header\[(\d+)\]/,                     // $json.header[2]
+									/body\.header\[(\d+)\]/,                       // body.header[2]
+									/header\[(\d+)\]/,                             // header[2]
+								];
+								
+								for (const pattern of headerPatterns) {
+									const match = fieldPathToResolve.match(pattern);
+									if (match) {
+										fieldPathToResolve = `$header.[${match[1]}]`;
+										break;
+									}
+								}
+							}
+							
+							const resolvedFieldPath = resolveFieldPath(fieldPathToResolve);
+							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath, headerData);
+							
 							let compareValue: any = null;
 							let compareValue2: any = null;
 
@@ -823,6 +1002,9 @@ export class ArrayIfThen implements INodeType {
 								compareValue,
 								compareValue2,
 							);
+							
+							// eslint-disable-next-line no-console
+							console.log('[DEBUG ArrayIfThen] Condition result:', conditionResult);
 
 							conditionResults.push(conditionResult);
 						}
@@ -846,7 +1028,7 @@ export class ArrayIfThen implements INodeType {
 
 								if (conditionFieldPath && conditionOperation) {
 									const resolvedConditionFieldPath = resolveFieldPath(conditionFieldPath);
-									const conditionFieldValue = getFieldValue(arrayItem, resolvedConditionFieldPath);
+									const conditionFieldValue = getFieldValue(arrayItem, resolvedConditionFieldPath, headerData);
 									let conditionCompareValue: any = null;
 
 									if (
@@ -880,13 +1062,26 @@ export class ArrayIfThen implements INodeType {
 										// Replace $item.fieldName with actual values
 										const itemRegex = /\{\{\s*\$item\.([\w.]+)\s*\}\}/g;
 										expression = expression.replace(itemRegex, (match, path) => {
-											const value = getFieldValue(arrayItem, path);
+											const value = getFieldValue(arrayItem, path, headerData);
+											return value !== undefined ? JSON.stringify(value) : 'undefined';
+										});
+
+										// Replace $header.fieldName or $header.[0] with actual values
+										const headerRegex = /\{\{\s*\$header\.([\w.\[\]]+)\s*\}\}/g;
+										expression = expression.replace(headerRegex, (match, path) => {
+											const value = getFieldValue(headerData, `$header.${path}`, headerData);
 											return value !== undefined ? JSON.stringify(value) : 'undefined';
 										});
 
 										// Replace $item.fieldName in operations (without {{ }})
 										expression = expression.replace(/\$item\.([\w.]+)/g, (match, path) => {
-											const value = getFieldValue(arrayItem, path);
+											const value = getFieldValue(arrayItem, path, headerData);
+											return value !== undefined ? JSON.stringify(value) : 'undefined';
+										});
+
+										// Replace $header.fieldName or $header.[0] in operations (without {{ }})
+										expression = expression.replace(/\$header\.([\w.\[\]]+)/g, (match, path) => {
+											const value = getFieldValue(headerData, `$header.${path}`, headerData);
 											return value !== undefined ? JSON.stringify(value) : 'undefined';
 										});
 
@@ -903,7 +1098,26 @@ export class ArrayIfThen implements INodeType {
 											// Replace all $item.fieldName references
 											const itemRefRegex = /\$item\.([\w.]+)/g;
 											evalExpr = evalExpr.replace(itemRefRegex, (match, path) => {
-												const value = getFieldValue(arrayItem, path);
+												const value = getFieldValue(arrayItem, path, headerData);
+												if (value === undefined || value === null) {
+													return 'undefined';
+												}
+												// If it's a number, return as number
+												if (typeof value === 'number') {
+													return String(value);
+												}
+												// If it's a boolean, return as boolean
+												if (typeof value === 'boolean') {
+													return String(value);
+												}
+												// Otherwise, return as JSON string (will be parsed)
+												return JSON.stringify(value);
+											});
+
+											// Replace all $header.fieldName or $header.[0] references
+											const headerRefRegex = /\$header\.([\w.\[\]]+)/g;
+											evalExpr = evalExpr.replace(headerRefRegex, (match, path) => {
+												const value = getFieldValue(headerData, `$header.${path}`, headerData);
 												if (value === undefined || value === null) {
 													return 'undefined';
 												}
@@ -1042,8 +1256,33 @@ export class ArrayIfThen implements INodeType {
 					for (const rule of rules) {
 						const conditionResults: boolean[] = [];
 						for (const condition of rule.conditions) {
-							const resolvedFieldPath = resolveFieldPath(condition.fieldPath);
-							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath);
+							let fieldPathToResolve = condition.fieldPath;
+							
+							// Check if expression contains header reference like {{ $json.body.header[2] }}
+							// Convert it to $header.[2] syntax
+							if (typeof fieldPathToResolve === 'string') {
+								// Check for patterns that indicate header reference
+								// Pattern: header[2] or body.header[2] or $json.body.header[2]
+								const headerPatterns = [
+									/\{\{\s*\$json\.body\.header\[(\d+)\]\s*\}\}/, // {{ $json.body.header[2] }}
+									/\{\{\s*\$json\.header\[(\d+)\]\s*\}\}/,      // {{ $json.header[2] }}
+									/\$json\.body\.header\[(\d+)\]/,              // $json.body.header[2]
+									/\$json\.header\[(\d+)\]/,                     // $json.header[2]
+									/body\.header\[(\d+)\]/,                       // body.header[2]
+									/header\[(\d+)\]/,                             // header[2]
+								];
+								
+								for (const pattern of headerPatterns) {
+									const match = fieldPathToResolve.match(pattern);
+									if (match) {
+										fieldPathToResolve = `$header.[${match[1]}]`;
+										break;
+									}
+								}
+							}
+							
+							const resolvedFieldPath = resolveFieldPath(fieldPathToResolve);
+							const fieldValue = getFieldValue(arrayItem, resolvedFieldPath, headerData);
 							let compareValue: any = null;
 							let compareValue2: any = null;
 							
@@ -1179,4 +1418,5 @@ export class ArrayIfThen implements INodeType {
 		return [returnDataTrue, returnDataFalse];
 	}
 }
+
 

@@ -1,12 +1,49 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"name": "Attach to running n8n",
-			"processId": "${command:PickProcess}",
-			"request": "attach",
-			"skipFiles": ["<node_internals>/**"],
-			"type": "node"
-		}
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug n8n Node (Attach)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "localhost",
+      "restart": true,
+      "protocol": "inspector",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js",
+        "${workspaceFolder}/**/*.js"
+      ],
+      "sourceMapPathOverrides": {
+        "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
+        "webpack:///./*": "${workspaceFolder}/*",
+        "webpack:///*": "*"
+      }
+    },
+    {
+      "name": "Debug n8n Node (Launch)",
+      "type": "node",
+      "request": "launch",
+      "name": "Debug n8n Node",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:debug"],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js",
+        "${workspaceFolder}/**/*.js"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
 }
