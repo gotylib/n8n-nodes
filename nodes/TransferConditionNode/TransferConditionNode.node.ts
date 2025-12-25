@@ -214,7 +214,7 @@ export class TransferConditionNode implements INodeType {
 
 			const postConditions = this.getNodeParameter('postConditions', 0) as PostConditionsWrapper;
 
-			const resultPostConditions = true;
+			const resultPostConditions = performRegisterPostConditions(filteredRegisters, postConditions);
 			
 
 			console.log('resultPostConditions', resultPostConditions);

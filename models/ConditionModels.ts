@@ -28,3 +28,25 @@ export interface BlocksWrapper {
 
 // То что приходит из getNodeParameter('blocks', i)
 export type BlocksParameter = BlocksWrapper;
+
+
+export interface PostConditionFieldModel {
+    registerNumber: string;
+    fieldNumber: number;
+}
+
+export interface OperationModel {
+    operation: string;
+}
+
+export interface PostConditionModel {
+    fieldLeft: PostConditionFieldModel;
+    operation: OperationModel;
+    fieldRight: PostConditionFieldModel;
+}
+
+export interface PostConditionsWrapper {
+    postConditions?: PostConditionModel[];
+}
+
+export type PostConditionsParameter = PostConditionsWrapper;

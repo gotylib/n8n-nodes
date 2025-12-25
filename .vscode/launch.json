@@ -10,7 +10,11 @@
       "restart": true,
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "${workspaceFolder}",
+      "protocol": "inspector",
+      "timeout": 10000
     }
   ]
 }
