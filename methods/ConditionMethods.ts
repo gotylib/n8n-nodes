@@ -1,94 +1,124 @@
-import { ConditionModel, ConditionGroupModel } from "../models/ConditionModels";
+import { ConditionModel, ConditionsWrapper } from "../models/ConditionModels";
+import { isNullOrUndefined } from "./BaseMethods";
 
+// Функция для фильтрации массива по условиям
+export const filterArraysByConditions = (array: any[][], conditions: ConditionsWrapper): any[][] => {
+    return array.filter((item) => conditions.conditions?.some((condition) => performConditionGroup(conditions, item)));
+}
 
-export const performConditionGroup = (conditionGroup: ConditionGroupModel): boolean => {
-    if(conditionGroup.conditions.length === 0){
+// Функция для выполнения группы условий
+export const performConditionGroup = (conditionGroup: ConditionsWrapper, array: any[]): boolean => {
+    
+    if(conditionGroup.conditions == null || conditionGroup.conditions == undefined){
         return true;
     }
 
-   if(conditionGroup.combineConditions.length === 0){
-        throw new Error('Combine conditions is required');
+    isNullOrUndefined(conditionGroup.conditions, 'Conditions are required');
+
+    const combineConditions = conditionGroup.conditions?.map((condition) => condition.combineNext);
+   
+    if(combineConditions == null || combineConditions == undefined){
+        return true;
     }
-   
-   const result = conditionGroup.conditions.map((condition) => performCondition(condition));
 
-   if(conditionGroup.combineConditions.includes('and') && result.some((r) => r === false)){
+    isNullOrUndefined(combineConditions, 'Combine conditions are required');
+   
+    let result = conditionGroup.conditions.map((condition) => performCondition(condition, array));
+
+    if(combineConditions.includes('and') && result.some((r) => r === false)){
+        return false;
+    }
+
+    if(combineConditions.includes('or') && result.some((r) => r === true)){
+        return true;
+    }
+
+
+    for(let i = 0; i < combineConditions.length; i++){
+            if(combineConditions[i] === 'and'){
+                if(!(result[i] && result[i+1])){
+                    result[i] = false;
+                    result[i+1] = false;
+                }
+            }
+    }
+
+   for(let i = 0; i < combineConditions.length; i++){
+        if(combineConditions[i] === 'or'){
+            if((result[i] || result[i+1])){
+                return true;
+            }
+        }
+    }
     return false;
-   }
-
-   if(conditionGroup.combineConditions.includes('or') && result.some((r) => r === true)){
-    return true;
-   }
-
-   for(let i = 0; i < conditionGroup.combineConditions.length; i++){
-
-   }
-   
 }
 
 
 
 // Функция для выполнения условия
-export const performCondition = (condition: ConditionModel): boolean => {
+export const performCondition = (condition: ConditionModel, array: any[]): boolean => {
+
+    const field = array[condition.fieldNumber - 1];
+
     switch (condition.operation) {
         case 'equal':
-            return String(condition.field) === String(condition.value);
+            return String(field) === String(condition.value);
         case 'notEqual':
-            return String(condition.field) !== String(condition.value);
+            return String(field) !== String(condition.value);
         case 'contains':
-            return String(condition.field).includes(String(condition.value));
+            return String(field).includes(String(condition.value));
         case 'notContains':
-            return !String(condition.field).includes(String(condition.value));
+            return !String(field).includes(String(condition.value));
         case 'greaterThan':
-            return Number(condition.field) > Number(condition.value);
+            return Number(field) > Number(condition.value);
         case 'lessThan':
-            return Number(condition.field) < Number(condition.value);
+            return Number(field) < Number(condition.value);
         case 'greaterThanOrEqual':
-            return Number(condition.field) >= Number(condition.value);
+            return Number(field) >= Number(condition.value);
         case 'lessThanOrEqual':
-            return Number(condition.field) <= Number(condition.value);
+            return Number(field) <= Number(condition.value);
         case 'in':
             if (!condition.value) {
                 return false;
             }
             const valueList = parseValueList(condition.value);
-            const fieldValueStr = String(condition.field);
+            const fieldValueStr = String(field);
             return valueList.some((v) => v === fieldValueStr);
         case 'notIn':
             if (!condition.value) {
                 return true;
             }
             const valueListNotIn = parseValueList(condition.value);
-            const fieldValueStrNotIn = String(condition.field);
+            const fieldValueStrNotIn = String(field);
             return !valueListNotIn.some((v) => v === fieldValueStrNotIn);
         case 'dateBetween':
             if (!condition.value || !condition.value2) {
                 return false;
             }
-            const fieldDate = new Date(condition.field);
+            const fieldDate = new Date(field);
             const date1 = new Date(condition.value);
             const date2 = new Date(condition.value2);
             return fieldDate >= date1 && fieldDate <= date2;
         case 'isEmpty':
             return (
-                condition.field === undefined ||
-                condition.field === null ||
-                condition.field === '' ||
-                (Array.isArray(condition.field) && condition.field.length === 0) ||
-                (typeof condition.field === 'object' && Object.keys(condition.field).length === 0)
+                field === undefined ||
+                field === null ||
+                field === '' ||
+                (Array.isArray(field) && field.length === 0) ||
+                (typeof field === 'object' && Object.keys(field).length === 0)
             );
         case 'isNotEmpty':
             return !(
-                condition.field === undefined ||
-                condition.field === null ||
-                condition.field === '' ||
-                (Array.isArray(condition.field) && condition.field.length === 0) ||
-                (typeof condition.field === 'object' && Object.keys(condition.field).length === 0)
+                field === undefined ||
+                field === null ||
+                field === '' ||
+                (Array.isArray(field) && field.length === 0) ||
+                (typeof field === 'object' && Object.keys(field).length === 0)
             );
         case 'exists':
-            return condition.field !== undefined && condition.field !== null;
+            return field !== undefined && field !== null;
         case 'notExists':
-            return condition.field === undefined || condition.field === null;
+            return field === undefined || field === null;
         default:
             return false;
     }

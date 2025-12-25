@@ -1,0 +1,10 @@
+{
+  "executions": {
+    "mode": "regular"
+  },
+  "taskRunners": {
+    "disabled": true,
+    "mode": "internal"
+  }
+}
+
