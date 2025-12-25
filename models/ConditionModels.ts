@@ -12,17 +12,13 @@ export interface ConditionModel {
     combineNext: 'and' | 'or';
 }
 
-// Обёртка условий из fixedCollection
-export interface ConditionsWrapper {
-    conditions?: ConditionModel[];
-}
 
 // Один блок (регистр + его условия)
 export interface BlockModel {
     // Номер регистра
     registerNumber: number;
     // Условия для этого регистра
-    conditions: ConditionsWrapper;
+    conditions?: ConditionModel[]
 }
 
 // Обёртка блоков из fixedCollection

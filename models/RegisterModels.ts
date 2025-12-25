@@ -3,6 +3,6 @@ export interface RegisterModel{
     table: any[][];
 }
 
-export interface ComplectRegisterModel {
+export interface ComplectRegisterModel{
     registers: { [key: string]: RegisterModel }; 
 }

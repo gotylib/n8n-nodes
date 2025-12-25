@@ -5,8 +5,9 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes} from 'n8n-workflow';
-import { GetRegisters } from '../../methods/RegisterMethods';
-import { BlocksWrapper } from '../../models/ConditionModels';
+import { filterRegistersByConditions, GetRegisters } from '../../methods/RegisterMethods';
+import { BlocksWrapper, PostConditionsWrapper } from '../../models/ConditionModels';
+import { performRegisterPostConditions } from '../../methods/RegisterMethods';
 
 export class TransferConditionNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -20,7 +21,8 @@ export class TransferConditionNode implements INodeType {
 			name: 'Transfer Condition',
 		},
             inputs: [NodeConnectionTypes.Main],
-            outputs: [NodeConnectionTypes.Main],
+            outputs: [NodeConnectionTypes.Main, NodeConnectionTypes.Main],
+			outputNames: ['True', 'False'],
             properties: [
                 {
                     displayName: 'Блоки условий',
@@ -72,6 +74,18 @@ export class TransferConditionNode implements INodeType {
                                                         { name: 'Равно', value: 'equal' },
                                                         { name: 'Не равно', value: 'notEqual' },
                                                         { name: 'Содержит', value: 'contains' },
+                                                        { name: 'Не содержит', value: 'notContains' },
+                                                        { name: 'Больше', value: 'greaterThan' },
+                                                        { name: 'Меньше', value: 'lessThan' },
+                                                        { name: 'Больше или равно', value: 'greaterThanOrEqual' },
+                                                        { name: 'Меньше или равно', value: 'lessThanOrEqual' },
+                                                        { name: 'В списке', value: 'in' },
+                                                        { name: 'Не в списке', value: 'notIn' },
+                                                        { name: 'Между датами', value: 'dateBetween' },
+                                                        { name: 'Пусто', value: 'isEmpty' },
+                                                        { name: 'Не пусто', value: 'isNotEmpty' },
+                                                        { name: 'Существует', value: 'exists' },
+                                                        { name: 'Не существует', value: 'notExists' },
                                                     ],
                                                     default: 'equal',
                                                 },
@@ -79,13 +93,28 @@ export class TransferConditionNode implements INodeType {
                                                     displayName: 'Значение',
                                                     name: 'value',
                                                     type: 'string',
+                                                    typeOptions: {
+                                                        rows: 3,
+                                                    },
                                                     default: '',
+                                                    displayOptions: {
+                                                        hide: {
+                                                            operation: ['exists', 'notExists', 'isEmpty', 'isNotEmpty'],
+                                                        },
+                                                    },
+                                                    description: 'Значение для сравнения. Для операций "В списке" и "Не в списке" можно указать несколько значений через запятую или с новой строки',
                                                 },
 												{
-													displayName: 'Значение 2 (для DateBetween)',
+													displayName: 'Значение 2 (для "Между датами")',
 													name: 'value2',
 													type: 'string',
 													default: '',
+													displayOptions: {
+                                                        show: {
+                                                            operation: ['dateBetween'],
+                                                        },
+                                                    },
+													description: 'Второе значение даты для операции "Между датами"',
 												},
 												{
 													displayName: 'Объединение с следующим условием',
@@ -105,6 +134,67 @@ export class TransferConditionNode implements INodeType {
                         },
                     ],
                 },
+                {
+                    displayName: 'Пост-условия',
+                    name: 'postConditions',
+                    type: 'fixedCollection',
+                    typeOptions: {
+                        multipleValues: true,
+                    },
+                    default: {},
+                    description: 'Условия для сравнения полей между регистрами после фильтрации',
+                    options: [
+                        {
+                            displayName: 'Пост-условие',
+                            name: 'postCondition',
+                            values: [
+                                {
+                                    displayName: 'Номер регистра (левое поле)',
+                                    name: 'fieldLeftRegisterNumber',
+                                    type: 'string',
+                                    default: 0,
+                                    description: 'Номер регистра для левого поля',
+                                },
+                                {
+                                    displayName: 'Номер поля (левое поле)',
+                                    name: 'fieldLeftFieldNumber',
+                                    type: 'number',
+                                    default: 0,
+                                    description: 'Номер поля в регистре для левого поля',
+                                },
+                                {
+                                    displayName: 'Операция',
+                                    name: 'operation',
+                                    type: 'options',
+                                    options: [
+                                        { name: 'Равно', value: 'equal' },
+                                        { name: 'Не равно', value: 'notEqual' },
+                                        { name: 'Больше', value: 'greaterThan' },
+                                        { name: 'Меньше', value: 'lessThan' },
+                                        { name: 'Больше или равно', value: 'greaterThanOrEqual' },
+                                        { name: 'Меньше или равно', value: 'lessThanOrEqual' },
+                                    ],
+                                    default: 'equal',
+                                    description: 'Операция сравнения между полями',
+                                },
+                                {
+                                    displayName: 'Номер регистра (правое поле)',
+                                    name: 'fieldRightRegisterNumber',
+                                    type: 'string',
+                                    default: 0,
+                                    description: 'Номер регистра для правого поля',
+                                },
+                                {
+                                    displayName: 'Номер поля (правое поле)',
+                                    name: 'fieldRightFieldNumber',
+                                    type: 'number',
+                                    default: 0,
+                                    description: 'Номер поля в регистре для правого поля',
+                                },
+                            ],
+                        },
+                    ],
+                },
             ],
         };
 
@@ -116,13 +206,25 @@ export class TransferConditionNode implements INodeType {
 			
 			const items = this.getInputData();
 			
-			const registers = GetRegisters(items);
+			const complectRegisters = GetRegisters(items);
 
 			const conditinsBlocks = this.getNodeParameter('blocks', 0) as BlocksWrapper;
 
-			console.log('conditinsBlocks', conditinsBlocks);
-			console.log('registers', registers);
+			const filteredRegisters = filterRegistersByConditions(complectRegisters.registers, conditinsBlocks);
+
+			const postConditions = this.getNodeParameter('postConditions', 0) as PostConditionsWrapper;
+
+			const resultPostConditions = true;
 			
-			return [items];
+
+			console.log('resultPostConditions', resultPostConditions);
+
+			if(resultPostConditions){
+				return [items, []];
+			} else {
+				return [[], items];
+			}
+
+		
 		}
     }
